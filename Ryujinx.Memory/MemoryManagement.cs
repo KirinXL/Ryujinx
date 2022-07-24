@@ -97,7 +97,7 @@ namespace Ryujinx.Memory
             {
                 if (owner.ForceWindows4KBView)
                 {
-                    MemoryManagementWindows.UnmapView4KB(address, (IntPtr)size);
+                    MemoryManagementWindows.UnmapView4KB(address, (IntPtr)size, owner);
                 }
                 else
                 {

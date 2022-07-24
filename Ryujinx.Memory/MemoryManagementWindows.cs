@@ -23,7 +23,11 @@ namespace Ryujinx.Memory
             {
                 IntPtr baseAddress = AllocateInternal2(size, AllocationType.Reserve | AllocationType.ReservePlaceholder);
 
-                if (!force4KBMap)
+                if (force4KBMap)
+                {
+                    _placeholders4KB.ReserveRange((ulong)baseAddress, (ulong)size);
+                }
+                else
                 {
                     _placeholders.ReserveRange((ulong)baseAddress, (ulong)size);
                 }
@@ -75,35 +79,7 @@ namespace Ryujinx.Memory
 
         public static void MapView4KB(IntPtr sharedMemory, ulong srcOffset, IntPtr location, IntPtr size)
         {
-            _placeholders4KB.UnmapAndMarkRangeAsMapped(location, size);
-
-            ulong uaddress = (ulong)location;
-            ulong usize = (ulong)size;
-            IntPtr endLocation = (IntPtr)(uaddress + usize);
-
-            while (location != endLocation)
-            {
-                WindowsApi.VirtualFree(location, (IntPtr)PageSize, AllocationType.Release | AllocationType.PreservePlaceholder);
-
-                var ptr = WindowsApi.MapViewOfFile3(
-                    sharedMemory,
-                    WindowsApi.CurrentProcessHandle,
-                    location,
-                    srcOffset,
-                    (IntPtr)PageSize,
-                    0x4000,
-                    MemoryProtection.ReadWrite,
-                    IntPtr.Zero,
-                    0);
-
-                if (ptr == IntPtr.Zero)
-                {
-                    throw new WindowsApiException("MapViewOfFile3");
-                }
-
-                location += PageSize;
-                srcOffset += PageSize;
-            }
+            _placeholders4KB.MapView(sharedMemory, srcOffset, location, size);
         }
 
         public static void UnmapView(IntPtr sharedMemory, IntPtr location, IntPtr size, MemoryBlock owner)
@@ -111,9 +87,9 @@ namespace Ryujinx.Memory
             _placeholders.UnmapView(sharedMemory, location, size, owner);
         }
 
-        public static void UnmapView4KB(IntPtr location, IntPtr size)
+        public static void UnmapView4KB(IntPtr location, IntPtr size, MemoryBlock owner)
         {
-            _placeholders4KB.UnmapView(location, size);
+            _placeholders4KB.UnmapView(location, size, owner);
         }
 
         public static bool Reprotect(IntPtr address, IntPtr size, MemoryPermission permission, bool forView)
@@ -150,7 +126,7 @@ namespace Ryujinx.Memory
         {
             if (force4KBMap)
             {
-                _placeholders4KB.UnmapRange(address, size);
+                _placeholders4KB.UnreserveRange((ulong)address, (ulong)size);
             }
             else
             {
